@@ -4,9 +4,10 @@ from textwrap import dedent
 from time import time
 from uuid import uuid4
 from urllib.parse import urlparse
-import requests
-
 from flask import Flask, jsonify, request
+import requests
+from flask_cors import CORS
+
 
 class BlockChain(object):
     def __init__(self):
@@ -19,11 +20,8 @@ class BlockChain(object):
 
     def register_node(self,address):
         """
-        Add a new node to the list of nodes
-        :param address: <str> Address of node. Eg. 'http://192.168.0.5:5000'
-        :return: None
+        Address of node. Eg. 'http://192.168.0.5:5000'
         """
-
         parsed_url = urlparse(address)
         self.nodes.add(parsed_url.netloc)
 
@@ -45,13 +43,6 @@ class BlockChain(object):
 
     
     def new_transaction(self, sender, recipient, amount):
-        """
-        Creates a new transaction to go into the next mined Block
-        :param sender: <str> Address of the Sender
-        :param recipient: <str> Address of the Recipient
-        :param amount: <int> Amount
-        :return: <int> The index of the Block that will hold this transaction
-        """
         self.current_transactions.append({
             'sender': sender,
             'recipient' : recipient,
@@ -65,24 +56,11 @@ class BlockChain(object):
 
     @staticmethod
     def hash(block):
-        """
-        Creates a SHA-256 hash of a Block
-        :param block: <dict> Block
-        :return: <str>
-        """
         # We must make sure that the Dictionary is Ordered, or we'll have inconsistent hashes
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
     def proof_of_work(self, last_proof):
-        """
-        Simple Proof of Work Algorithm:
-         - Find a number p' such that hash(pp') contains leading 4 zeroes, where p is the previous p'
-         - p is the previous proof, and p' is the new proof
-        :param last_proof: <int>
-        :return: <int>
-        """
-
         proof = 0
         while self.valid_proof(last_proof, proof) is False:
             proof += 1
@@ -91,23 +69,11 @@ class BlockChain(object):
 
     @staticmethod
     def valid_proof(last_proof, proof):
-        """
-        Validates the Proof: Does hash(last_proof, proof) contain 4 leading zeroes?
-        :param last_proof: <int> Previous Proof
-        :param proof: <int> Current Proof
-        :return: <bool> True if correct, False if not.
-        """
-
         guess = f'{last_proof}{proof}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         return guess_hash[:4] == "0000"
 
     def valid_chain(self,chain):
-        """
-        Determine if a given blockchain is valid
-        :param chain: <list> A blockchain
-        :return: <bool> True if valid, False if not
-        """
         last_block = chain[0]
         current_index = 1
 
@@ -128,11 +94,6 @@ class BlockChain(object):
         return True
 
     def resolve_conflicts(self):
-        """
-        This is our Consensus Algorithm, it resolves conflicts
-        by replacing our chain with the longest one in the network.
-        :return: <bool> True if our chain was replaced, False if not
-        """
         neighbours = self.nodes
         new_chain = None
 
@@ -170,6 +131,7 @@ block = {
 
 # Instantiate our Node
 app = Flask(__name__)
+CORS(app)
 
 # Generate a globally unique address for this node
 node_identifier = str(uuid4()).replace('-','')
